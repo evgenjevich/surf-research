@@ -54,7 +54,7 @@ M = 5.0
 c_0 = 0.5
 epsilon = 0.01
 rho_s = 5.0
-filepath = os.path.join('/data', sumatra_label)
+filepath = os.path.join('/data/aem1/new1a/surf-research/Andrey/Data', sumatra_label) # 
 
 # solution variable
 c_var = fp.CellVariable(mesh=mesh, name=r"$c$", hasOld=True)
@@ -92,12 +92,8 @@ step_data = []
 #file_name = "1a{0}x{1}step{2}".format(N, dx, steps)
 
 def save_data(f, time, cvar, steps):
-    f_data.append(f.value)
-    time_data.append(time)
-    cvar_data.append(np.array(cvar.value))
-    step_data.append(steps)
     file_name = "1a{0}x{1}step{2}".format(N, dx, steps)
-    np.savez(os.path.join(filepath, file_name), c_var = cvar_data, time = time_data, f = f_data, steps = step_data)
+    np.savez(os.path.join(filepath, file_name), cvar = cvar.value, time = time, f = f.value, steps = steps)
 
 # solver equation    
 eqn = fp.TransientTerm(coeff=1.) == fp.DiffusionTerm(M * f_0_var(c_var)) - fp.DiffusionTerm((M, kappa))
@@ -150,13 +146,25 @@ while steps <= total_steps:
         c_var[:] = c_var.old
 
 #memory stuff saves
-filepath = os.path.join('/data', sumatra_label)
+# filepath = os.path.join('/data', sumatra_label) 
 #Keep track os how much memory was used and dump into a txt file
 memory2 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #final memory peak
 memory_diff = (memory2 - memory1,)
 filename2 = 'memory_usage.txt'
 np.savetxt(os.path.join(filepath, filename2), memory_diff )
-                     
+
+
+#create 400 mesh to interpolate onto
+# m = fp.Grid2D(nx=400, ny=400, dx=.5, dy=.5)
+# v = fp.CellVariable(mesh=m)
+
+# #interpolate the latest c_var values (hopefully at equillibrium) to the empty 400 grid
+# v = c_var([mesh.x, mesh.y], order-1)
+
+#save the interpolated values to a file
+# interp_name = "1a{0}x{1}step{2}Interp400".format(N, dx, steps)
+# np.savez(os.path.join(filepath, interp_name), cvar = v)
+
 # simulation ends
 print 'elapsed_time:', elapsed
 
