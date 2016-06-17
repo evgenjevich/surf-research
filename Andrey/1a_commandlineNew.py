@@ -89,11 +89,11 @@ f_data = []
 time_data = []
 cvar_data = []
 step_data = []
-#file_name = "1a{0}x{1}step{2}".format(N, dx, steps)
 
-def save_data(f, time, cvar, steps):
+
+def save_data(f, time, cvar, steps, N, dx ):
     file_name = "1a{0}x{1}step{2}".format(N, dx, steps)
-    np.savez(os.path.join(filepath, file_name), cvar = cvar.value, time = time, f = f.value, steps = steps)
+    np.savez(os.path.join(filepath, file_name), cvar = cvar.value, time = time, f = f.value, steps = steps, grid = '{0}x{1}'.format(N,dx))
 
 # solver equation    
 eqn = fp.TransientTerm(coeff=1.) == fp.DiffusionTerm(M * f_0_var(c_var)) - fp.DiffusionTerm((M, kappa))
@@ -117,13 +117,7 @@ while steps <= total_steps:
         res = eqn.sweep(c_var, dt=dt, solver=solver)
 
     if res < res0 * tolerance:
-        # checks whether a folder for the pickles from this simulation exists
-        # if not, creates one in the home directory
-        # file_dir = "~/1apickles{0}x{1}".format(nx, dx)
-        # if not os.path.isdir(file_dir):
-        #     os.makedirs(file_dir)
-        
-        # anything in this loop will only be executed 100 times
+
         if ((steps%10)==0):
             print steps
             print elapsed
@@ -132,11 +126,8 @@ while steps <= total_steps:
             # equivalent to the average value of the free energy for any cell,
             # multiplied by the number of cells and the area of each cell
             # (since this is a 2D domain)
-            save_data(f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps)
-            # saves c_var in pickle file
-            # fp.dump.write({'time' : steps, 'var': c_var}, '1apickles{0}x{1}/1a_{2}.pkl'.format(nx, dx, steps))
-            
-            
+            save_data(f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N, dx)
+             
         steps += 1
         elapsed += dt
         dt *= 1.1
