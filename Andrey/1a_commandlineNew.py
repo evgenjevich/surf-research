@@ -109,6 +109,7 @@ duration = 300
 
 c_var.updateOld()
 from fipy.solvers.pysparse import LinearLUSolver as Solver
+from numpy.testing import assert_almost_equal as npt 
 solver = Solver()
 print "Starting Solver."
 while steps <= total_steps:
@@ -118,9 +119,10 @@ while steps <= total_steps:
         res = eqn.sweep(c_var, dt=dt, solver=solver)
 
         if (elapsed + dt) > marker:
+            print 'triggered dt = ',dt
             dt_0 = dt
             dt = marker - elapsed
-        if elapsed == marker:
+        if elapsed == marker: ##NEED A BETTER CHECK, CANT CHECK FLOATS
             markerfile = "1a{0}step{1}.mpz".format(N,steps)
             save_data(markerfile, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
             dt = dt_0
