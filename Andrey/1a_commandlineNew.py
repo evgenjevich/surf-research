@@ -14,6 +14,8 @@ import resource
 
 memory1 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #get initial memory peak
 
+marker = .5 #add this as a parameter at some point
+
 #load in the json parameter file here
 jsonfile = sys.argv[1]
 
@@ -91,9 +93,8 @@ cvar_data = []
 step_data = []
 
 
-def save_data(f, time, cvar, steps, N, dx ):
-    file_name = "1a{0}x{1}step{2}".format(N, dx, steps)
-    np.savez(os.path.join(filepath, file_name), cvar = cvar.value, time = time, f = f.value, steps = steps, grid = '{0}x{1}'.format(N,dx))
+def save_data(filename, f, time, cvar, steps, N):
+    np.savez(os.path.join(filepath, filename), cvar = cvar.value, time = time, f = f.value, steps = steps, N = N)
 
 # solver equation    
 eqn = fp.TransientTerm(coeff=1.) == fp.DiffusionTerm(M * f_0_var(c_var)) - fp.DiffusionTerm((M, kappa))
@@ -116,8 +117,17 @@ while steps <= total_steps:
     for sweeps in range(total_sweeps):
         res = eqn.sweep(c_var, dt=dt, solver=solver)
 
+        if (elapsed + dt) > marker:
+            dt_0 = dt
+            dt = marker - elapsed
+        if elapsed == marker:
+            markerfile = "1a{0}step{1}.mpz".format(N,steps)
+            save_data(markerfile, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
+            dt = dt_0
+            print 'marker time = ', elapsed
+            
     if res < res0 * tolerance:
-
+        
         if ((steps%10)==0):
             print steps
             print elapsed
@@ -126,7 +136,8 @@ while steps <= total_steps:
             # equivalent to the average value of the free energy for any cell,
             # multiplied by the number of cells and the area of each cell
             # (since this is a 2D domain)
-            save_data(f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N, dx)
+            file_name = "1a{0}x{1}step{2}".format(N, dx, steps)
+            save_data(file_name, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
              
         steps += 1
         elapsed += dt
@@ -136,12 +147,10 @@ while steps <= total_steps:
         dt *= 0.8
         c_var[:] = c_var.old
 
-#memory stuff saves
-# filepath = os.path.join('/data', sumatra_label) 
-#Keep track os how much memory was used and dump into a txt file
+#Keep track of how much memory was used and dump into a txt file
 memory2 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #final memory peak
-memory_diff = (memory2 - memory1,)
-filename2 = 'memory_usage.txt'
+memory_diff = (memory2 - memory1,) #difference between memory peaks
+filename2 = 'memory_usage.txt' #will always be the last file save
 np.savetxt(os.path.join(filepath, filename2), memory_diff )
 
 
