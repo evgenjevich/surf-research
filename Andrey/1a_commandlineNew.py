@@ -14,12 +14,12 @@ import resource
 
 memory1 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #get initial memory peak
 
-def calc_dt(elapsed_time, dt, dt_old, dump_to_file, dump_times):
+def calc_dt(elapsed_time, dt, dt_old, dump_to_file, dump_times, filename):
     if dump_to_file:
         dt = dt_old
         dt = dt * 1.1
         dump_to_file = False
-        filename = 'data_time-{0:.2f}_step-{1}.npz'.format(elapsed_time, str(steps).rjust(6, '0'))
+        filename = 'data_time-{0:.2f}_step-{1}.npz'.format(elapsed_time+dt, str(steps).rjust(6, '0'))
     else:
         dt_old = dt
         dt = dt * 1.1
@@ -31,7 +31,7 @@ def calc_dt(elapsed_time, dt, dt_old, dump_to_file, dump_times):
                 dump_to_file = True
                 
                 #dump_time files will have .mpz.npz extension
-                filename = 'data_time-{0:.2f}_step-{1}.mpz.npz'.format(elapsed_time, str(steps).rjust(6, '0')) 
+                filename = 'data_time-{0:.2f}_step-{1}.mpz.npz'.format(elapsed_time+dt, str(steps).rjust(6, '0')) 
                 del dump_times[0]
 
     return dt, dt_old, dump_times, dump_to_file, filename
@@ -123,12 +123,14 @@ def save_data(filename, f, time, cvar, steps, N):
 # solver equation    
 eqn = fp.TransientTerm(coeff=1.) == fp.DiffusionTerm(M * f_0_var(c_var)) - fp.DiffusionTerm((M, kappa))
 
-dump_times = [1.0, 3.0, 10.0]
+dump_times = [.5, 1.0, 10.0]
 elapsed = 0.0
 steps = 0
-dt = 0.01 
+dt = 0.01
+dt_old = dt
 tolerance = 1e-1
 dump_to_file = False
+filename = '1a_{0}_step{1}_data_time-{0:.2f}.npz'.format(N, str(steps).rjust(6, '0'), elapsed)
 
 # controls on how long the simulation runs: steps, duration, or both
 duration = 300
@@ -143,17 +145,6 @@ while steps <= total_steps:
 
     for sweeps in range(total_sweeps):
         res = eqn.sweep(c_var, dt=dt, solver=solver)
-
-        # if (elapsed + dt) > marker:
-        #     print 'triggered dt = ',dt
-        #     dt_0 = dt
-        #     triggered = True
-        #     dt = marker - elapsed
-        # if elapsed == marker: ##NEED A BETTER CHECK, CANT CHECK FLOATS
-        #     markerfile = "1a{0}step{1}.mpz".format(N,steps)
-        #     save_data(markerfile, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
-        #     dt = dt_0
-        #     print 'marker time = ', elapsed
             
     if res < res0 * tolerance:
         steps += 1
@@ -163,9 +154,10 @@ while steps <= total_steps:
             print steps
             print elapsed
 
-            np.savez('1a_{0}_step{1}_data_time-{0:.2f}.npz'.format(N, elapsed_time, str(steps).rjust(6, '0')),
+            np.savez(os.path.join(filepath,filename),
                      c_var_array=np.array(c_var),
                      dt=dt,
+                     elapsed=elapsed,
                      steps=steps,
                      dx=c_var.mesh.dx,
                      dy=c_var.mesh.dy,
@@ -179,7 +171,7 @@ while steps <= total_steps:
             # save_data(file_name, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
              
         
-
+        dt, dt_old, dump_times, dump_to_file, filename = calc_dt(elapsed, dt, dt_old, dump_to_file, dump_times, filename)
         c_var.updateOld()
     else:
         dt *= 0.8
@@ -191,22 +183,11 @@ memory_diff = (memory2 - memory1,) #difference between memory peaks
 filename2 = 'memory_usage.txt' #will always be the last file save
 np.savetxt(os.path.join(filepath, filename2), memory_diff )
 
-#Testing the .mpz save file
-# markerfile = "1a{0}step{1}.mpz".format(N,steps)
-# save_data(markerfile, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
-
-
-
 #create 400 mesh to interpolate onto
 # m = fp.Grid2D(nx=400, ny=400, dx=.5, dy=.5)
 # v = fp.CellVariable(mesh=m)
 
-# #interpolate the latest c_var values (hopefully at equillibrium) to the empty 400 grid
-# v = c_var([mesh.x, mesh.y], order-1)
 
-#save the interpolated values to a file
-# interp_name = "1a{0}x{1}step{2}Interp400".format(N, dx, steps)
-# np.savez(os.path.join(filepath, interp_name), cvar = v)
 
 # simulation ends
 print 'elapsed_time:', elapsed
