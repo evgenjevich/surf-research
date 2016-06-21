@@ -14,10 +14,34 @@ import resource
 
 memory1 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #get initial memory peak
 
+def calc_dt(elapsed_time, dt, dt_old, dump_to_file, dump_times):
+    if dump_to_file:
+        dt = dt_old
+        dt = dt * 1.1
+        dump_to_file = False
+        filename = 'data_time-{0:.2f}_step-{1}.npz'.format(elapsed_time, str(steps).rjust(6, '0'))
+    else:
+        dt_old = dt
+        dt = dt * 1.1
+        # import ipdb; ipdb.set_trace()
+
+        if len(dump_times) > 0:
+            if (elapsed_time + dt) >= dump_times[0]:
+                dt = dump_times[0] - elapsed_time
+                dump_to_file = True
+                
+                #dump_time files will have .mpz.npz extension
+                filename = 'data_time-{0:.2f}_step-{1}.mpz.npz'.format(elapsed_time, str(steps).rjust(6, '0')) 
+                del dump_times[0]
+
+    return dt, dt_old, dump_times, dump_to_file, filename
+
+
 marker = .5 #add this as a parameter at some point
 
 #load in the json parameter file here
 jsonfile = sys.argv[1]
+
 
 if jsonfile:
     with open(jsonfile, 'rb') as ff:
@@ -99,10 +123,12 @@ def save_data(filename, f, time, cvar, steps, N):
 # solver equation    
 eqn = fp.TransientTerm(coeff=1.) == fp.DiffusionTerm(M * f_0_var(c_var)) - fp.DiffusionTerm((M, kappa))
 
+dump_times = [1.0, 3.0, 10.0]
 elapsed = 0.0
 steps = 0
 dt = 0.01 
 tolerance = 1e-1
+dump_to_file = False
 
 # controls on how long the simulation runs: steps, duration, or both
 duration = 300
@@ -118,32 +144,42 @@ while steps <= total_steps:
     for sweeps in range(total_sweeps):
         res = eqn.sweep(c_var, dt=dt, solver=solver)
 
-        if (elapsed + dt) > marker:
-            print 'triggered dt = ',dt
-            dt_0 = dt
-            dt = marker - elapsed
-        if elapsed == marker: ##NEED A BETTER CHECK, CANT CHECK FLOATS
-            markerfile = "1a{0}step{1}.mpz".format(N,steps)
-            save_data(markerfile, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
-            dt = dt_0
-            print 'marker time = ', elapsed
+        # if (elapsed + dt) > marker:
+        #     print 'triggered dt = ',dt
+        #     dt_0 = dt
+        #     triggered = True
+        #     dt = marker - elapsed
+        # if elapsed == marker: ##NEED A BETTER CHECK, CANT CHECK FLOATS
+        #     markerfile = "1a{0}step{1}.mpz".format(N,steps)
+        #     save_data(markerfile, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
+        #     dt = dt_0
+        #     print 'marker time = ', elapsed
             
     if res < res0 * tolerance:
+        steps += 1
+        elapsed += dt
         
-        if ((steps%10)==0):
+        if dump_to_file or steps%10==0:
             print steps
             print elapsed
-            
+
+            np.savez('1a_{0}_step{1}_data_time-{0:.2f}.npz'.format(N, elapsed_time, str(steps).rjust(6, '0')),
+                     c_var_array=np.array(c_var),
+                     dt=dt,
+                     steps=steps,
+                     dx=c_var.mesh.dx,
+                     dy=c_var.mesh.dy,
+                     nx=c_var.mesh.nx,
+                     ny=c_var.mesh.ny)
             # record the volume integral of the free energy 
             # equivalent to the average value of the free energy for any cell,
             # multiplied by the number of cells and the area of each cell
             # (since this is a 2D domain)
-            file_name = "1a{0}x{1}step{2}".format(N, dx, steps)
-            save_data(file_name, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
+            # file_name = "1a{0}x{1}step{2}".format(N, dx, steps)
+            # save_data(file_name, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
              
-        steps += 1
-        elapsed += dt
-        dt *= 1.1
+        
+
         c_var.updateOld()
     else:
         dt *= 0.8
@@ -154,6 +190,11 @@ memory2 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #final memory peak
 memory_diff = (memory2 - memory1,) #difference between memory peaks
 filename2 = 'memory_usage.txt' #will always be the last file save
 np.savetxt(os.path.join(filepath, filename2), memory_diff )
+
+#Testing the .mpz save file
+# markerfile = "1a{0}step{1}.mpz".format(N,steps)
+# save_data(markerfile, f(c_var).cellVolumeAverage*mesh.numberOfCells*(dx**2), elapsed, c_var, steps, N)
+
 
 
 #create 400 mesh to interpolate onto
