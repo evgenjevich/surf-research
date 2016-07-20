@@ -6,19 +6,17 @@ import glob
 nx = 200
 dx = 1.0
 
-#mesh = fp.PeriodicGrid2D(nx=nx, ny=nx, dx=dx, dy=dx)
+mesh = fp.PeriodicGrid2D(nx=nx, ny=nx, dx=dx, dy=dx)
 #mesh = fp.Grid2D(nx=nx, ny=nx, dx=dx, dy=dx)
-mesh = fp.Grid2D(Lx=20., Ly=100.0, nx=nx / 5, ny=nx) + (fp.Grid2D(Ly=20.0, Lx=100.0, nx=nx, ny=nx / 5) + [[-40],[100]])
+#mesh = fp.Grid2D(Lx=20., Ly=100.0, nx=nx / 5, ny=nx) + (fp.Grid2D(Ly=20.0, Lx=100.0, nx=nx, ny=nx / 5) + [[-40],[100]])
 
 # load and cut off values at given duration
-file_dir = '/data/and9/surf-research/Anushka/1c'
-filename = file_dir + '/1c200*.npz'
-newest = max(glob.iglob(filename), key=os.path.getctime)
+file_dir = '/data/and9/surf-research/Anushka/1a'
+filename = file_dir + '/1a200.npz'
 
-
-times = np.load(newest)['time']
-c_np = np.load(newest)['c_var']
-f = np.load(newest)['f']
+times = np.load(filename)['time']
+c_np = np.load(filename)['c_var']
+f = np.load(filename)['f']
 
 c_np_0 = c_np[0]
 
@@ -27,9 +25,9 @@ c_var = fp.CellVariable(value = c_np_0, mesh = mesh)
 
 
 fig = plt.figure(figsize = (10, 5))
-#fig.suptitle('Periodic Boundary Conditions on a Square Domain', fontsize = 15)
+fig.suptitle('Periodic Boundary Conditions on a Square Domain', fontsize = 15)
 #fig.suptitle('Fixed-Flux Boundary Conditions on a Square Domain', fontsize = 15)
-fig.suptitle('Fixed-Flux Boundary Conditions on a T-Shaped Domain', fontsize = 15)
+#fig.suptitle('Fixed-Flux Boundary Conditions on a T-Shaped Domain', fontsize = 15)
 
 axes1 = fig.add_subplot(121)
 viewer = fp.Viewer(c_var, axes=axes1, colorbar=None, title = 'Concentration Distribution', fontsize = 10)
@@ -70,6 +68,6 @@ for index in range(len(times)):
 #    fig.show() 
  
 #    plt.savefig('1b_images/image{0}.png'.format(str(index).rjust(5, '0')))
-    plt.savefig('/tmp/1c_images/image{0}.png'.format(str(index).rjust(5, '0')))
+    plt.savefig('/tmp/1a_images/image{0}.png'.format(str(index).rjust(5, '0')))
     print "saving ", 'image{0}.png'.format(str(index).rjust(5, '0')) 
 
